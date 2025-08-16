@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weather App</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* Body jako flex, karta wyśrodkowana */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  position: relative;
+}
+
+/* Warstwy tła */
+.bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 2s ease;
+  z-index: -1;
+}
+#bg1 { opacity: 1; }
+#bg2 { opacity: 0; }
+
+/* Karta */
+.card {
+  background: rgba(255,255,255,0.2);
+  padding: 2rem;
+  border-radius: 25px;
+  text-align: center;
+  width: 360px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  transform: translateY(40px);
+  opacity: 0;
+  animation: cardFade 1s forwards;
+}
+
+/* Animacje */
+@keyframes cardFade { to {opacity:1; transform: translateY(0);} }
+h1 { font-size: 2.4rem; margin-bottom: 1.5rem; transform: translateY(-20px); opacity:0; animation: titleFade 1s forwards 0.3s; }
+@keyframes titleFade { to {opacity:1; transform: translateY(0);} }
+.search { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; opacity:0; transform: translateY(20px); animation: searchFade 1s forwards 0.6s; }
+@keyframes searchFade { to {opacity:1; transform: translateY(0);} }
+input { flex:1; padding:0.6rem; border-radius:12px; border:none; font-size:1rem; }
+button { padding:0.6rem 1rem; border:none; border-radius:12px; background:#2563eb; color:white; font-weight:bold; cursor:pointer; transition: transform 0.3s, background 0.3s; }
+button:hover { transform: scale(1.05); background:#1e40af; }
+.result { margin-top:1rem; opacity:0; transform: translateY(30px); animation: showResult 0.8s forwards; }
+@keyframes showResult { to {opacity:1; transform: translateY(0);} }
+.result h2, .result p, .result img { opacity:0; transform:translateY(20px); animation: fadeInUp 0.5s forwards; }
+.result h2 {animation-delay:0.2s;}
+.result .temp {animation-delay:0.4s;}
+.result p:not(.temp) {animation-delay:0.6s;}
+.result img {animation-delay:0.8s;}
+@keyframes fadeInUp { to {opacity:1; transform:translateY(0);} }
+.temp { font-size:3rem; font-weight:bold; margin:0.5rem 0; animation: tempPulse 2s infinite alternate; }
+@keyframes tempPulse { 0% {transform:scale(1);} 100% {transform:scale(1.1);} }
+img { margin-top:10px; animation: iconBounce 2s infinite alternate; }
+@keyframes iconBounce { 0% {transform:translateY(0);} 100% {transform:translateY(-10px);} }
+.error { color:#f87171; font-weight:bold; opacity:0; animation: fadeIn 1s forwards; }
+@keyframes fadeIn { to {opacity:1;} }
+</style>
+</head>
+<body>
+
+<!-- Warstwy tła gradientowego -->
+<div id="bg1" class="bg-layer" style="background: linear-gradient(180deg, #1e3a8a, #3b82f6);"></div>
+<div id="bg2" class="bg-layer"></div>
+
+<div class="card">
+  <h1>🌍 Weather App</h1>
+  <div class="search">
+    <input type="text" id="city" placeholder="Enter city">
+    <button onclick="getWeather()">Search</button>
+  </div>
+  <p id="error" class="error"></p>
+  <div id="result"></div>
+</div>
+
+<script>
+let bg1 = document.getElementById('bg1');
+let bg2 = document.getElementById('bg2');
+let activeBg = 1; // która warstwa aktualnie widoczna
+
+async function getWeather() {
+  const city = document.getElementById('city').value;
+  const apiKey = "0fc27f112e834d4393a171507251608";
+  const errorEl = document.getElementById('error');
+  const resultEl = document.getElementById('result');
+  errorEl.textContent = '';
+  resultEl.innerHTML = '';
+  if(!city) return;
+
+  try {
+    const res = await fetch(`https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${city}&aqi=no&lang=en`);
+    if(!res.ok) throw new Error('City not found');
+    const data = await res.json();
+
+    const condition = data.current.condition.text.toLowerCase();
+    let newGradient = 'linear-gradient(180deg, #1e3a8a, #3b82f6)';
+    if(condition.includes('sunny') || condition.includes('clear')) newGradient = 'linear-gradient(180deg, #facc15, #fcd34d)';
+    else if(condition.includes('rain') || condition.includes('drizzle')) newGradient = 'linear-gradient(180deg, #3b82f6, #60a5fa)';
+    else if(condition.includes('cloud')) newGradient = 'linear-gradient(180deg, #6b7280, #9ca3af)';
+    else if(condition.includes('snow')) newGradient = 'linear-gradient(180deg, #f0f9ff, #c7d2fe)';
+
+    // Płynne przejście tła
+    if(activeBg === 1) {
+      bg2.style.background = newGradient;
+      bg2.style.opacity = '1';
+      bg1.style.opacity = '0';
+      activeBg = 2;
+    } else {
+      bg1.style.background = newGradient;
+      bg1.style.opacity = '1';
+      bg2.style.opacity = '0';
+      activeBg = 1;
+    }
+
+    resultEl.innerHTML = `
+      <div class="result">
+        <h2>${data.location.name}, ${data.location.country}</h2>
+        <p class="temp">${data.current.temp_c}°C</p>
+        <p>Condition: ${data.current.condition.text}</p>
+        <p>Humidity: ${data.current.humidity}%</p>
+        <p>Wind: ${data.current.wind_kph} kph</p>
+        <p>Pressure: ${data.current.pressure_mb} mb</p>
+        <img src="${data.current.condition.icon}" alt="Weather icon">
+      </div>
+    `;
+  } catch(err) {
+    errorEl.textContent = err.message;
+  }
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
